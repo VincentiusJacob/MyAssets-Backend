@@ -53,7 +53,6 @@ app.use((req, res, next) => {
 
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(express.static(path.join(__dirname, "../clientSide/dashboard/dist")));
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
