@@ -25,8 +25,15 @@ const port = 5000;
 const saltRounds = 10;
 
 // Middleware setup
+
+app.use(
+  cors({
+    origin: "https://myassets-gamma.vercel.app",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
