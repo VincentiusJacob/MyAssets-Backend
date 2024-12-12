@@ -97,10 +97,12 @@ app.post("/auth/register", async (req: Request, res: Response) => {
 app.post("/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
+
   try {
     const response: AuthResponse = await supabase.auth.signInWithPassword({
       email,
-      password,
+      password: hashedPassword,
     });
 
     if (response.error)
@@ -510,6 +512,8 @@ app.get("/api/netWorth/:username", async (req, res) => {
 
 app.get("/api/overview/:username", async (req, res) => {
   const { username } = req.params;
+
+  console.log("username: ", username);
 
   try {
     const { data: user, error: userError } = await supabase
