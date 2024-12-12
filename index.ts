@@ -98,6 +98,7 @@ app.post("/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   const hashedPassword = await bcrypt.hash(password, saltRounds);
+  console.log("hashed: ", hashedPassword);
 
   try {
     const response: AuthResponse = await supabase.auth.signInWithPassword({
