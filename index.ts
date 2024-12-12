@@ -97,22 +97,21 @@ app.post("/auth/register", async (req: Request, res: Response) => {
 app.post("/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
-  console.log("hashed: ", hashedPassword);
-
   try {
-    const response: AuthResponse = await supabase.auth.signInWithPassword({
-      email,
-      password: hashedPassword,
-    });
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
 
-    if (response.error)
-      return res.status(400).json({ error: response.error.message });
+    if (error || !user) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
 
-    const user = response.data?.user;
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
 
-    if (!user) {
-      return res.status(400).json({ error: "User not found" });
+    if (!isPasswordMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
     }
 
     (req.session as { user?: User }).user = user;
