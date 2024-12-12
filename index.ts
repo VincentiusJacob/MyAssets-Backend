@@ -78,7 +78,6 @@ app.post("/auth/register", async (req: Request, res: Response) => {
 
     const { error: dbError } = await supabase.from("users").insert([
       {
-        user_id: user.id,
         username,
         email,
         password: hashedPassword,
