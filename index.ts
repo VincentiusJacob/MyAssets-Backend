@@ -295,6 +295,7 @@ app.get("/getProfile/:email", async (req, res) => {
 app.post("/newTransaction", async (req, res) => {
   const { username, title, amount, category, description, type } = req.body;
   console.log("User is:", username);
+  console.log("req: ", req.body);
 
   try {
     const { data: user, error: userError } = await supabase
@@ -327,7 +328,10 @@ app.post("/newTransaction", async (req, res) => {
 
     if (insertError) {
       console.error("Error inserting transaction:", insertError);
-      return res.status(500).json({ message: "Failed to create transaction" });
+      return res.status(500).json({
+        message: "Failed to create transaction",
+        error: insertError.message,
+      });
     }
 
     return res.status(200).json({ message: "Successful transaction" });
