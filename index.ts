@@ -365,7 +365,7 @@ app.get("/getTransaction/:username", async (req, res) => {
 
     const { data: transactions, error: transactionError } = await supabase
       .from("transactions")
-      .select("title, amount, dates, category, description")
+      .select("title, amount, date, category, description")
       .eq("user_id", userId);
 
     if (transactionError) {
@@ -451,7 +451,7 @@ app.get("/api/netWorth/:username", async (req, res) => {
 
     const { data: transactions, error: transactionsError } = await supabase
       .from("transactions")
-      .select("category, dates, amount")
+      .select("category, date, amount")
       .eq("user_id", userId);
 
     if (transactionsError) {
@@ -476,7 +476,7 @@ app.get("/api/netWorth/:username", async (req, res) => {
     const assets = transactions
       .filter((t) => ["Income", "Savings", "Investment"].includes(t.category))
       .reduce((acc, t) => {
-        const month = new Date(t.dates).toISOString().slice(0, 7);
+        const month = new Date(t.date).toISOString().slice(0, 7);
         acc[month] = (acc[month] || 0) + t.amount;
         return acc;
       }, {} as { [month: string]: number });
@@ -484,7 +484,7 @@ app.get("/api/netWorth/:username", async (req, res) => {
     const expenses = transactions
       .filter((t) => t.category === "Expense")
       .reduce((acc, t) => {
-        const month = new Date(t.dates).toISOString().slice(0, 7);
+        const month = new Date(t.date).toISOString().slice(0, 7);
         acc[month] = (acc[month] || 0) + t.amount;
         return acc;
       }, {} as { [month: string]: number });
@@ -541,7 +541,7 @@ app.get("/api/overview/:username", async (req, res) => {
       .from("transactions")
       .select(
         `
-        dates,
+        date,
         category,
         amount
       `
@@ -567,7 +567,7 @@ app.get("/api/overview/:username", async (req, res) => {
     };
 
     const overview = data.reduce((acc: Overview, transaction) => {
-      const month = new Date(transaction.dates).toISOString().slice(0, 7);
+      const month = new Date(transaction.date).toISOString().slice(0, 7);
       const category = transaction.category;
       const amount = transaction.amount;
 
@@ -633,7 +633,7 @@ app.get("/api/incomeTrends/:username", async (req, res) => {
       .from("transactions")
       .select(
         `
-        dates,
+        date,
         category,
         amount
       `
@@ -650,7 +650,7 @@ app.get("/api/incomeTrends/:username", async (req, res) => {
     }
 
     const incomeTrends = data.reduce((acc: any, transaction) => {
-      const month = new Date(transaction.dates).toISOString().slice(0, 7);
+      const month = new Date(transaction.date).toISOString().slice(0, 7);
       const category = transaction.category;
       const amount = transaction.amount;
 
@@ -910,7 +910,7 @@ app.get("/api/growthIncome/:username", async (req, res) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("dates, category, amount")
+      .select("date, category, amount")
       .eq("user_id", userid);
 
     if (error) {
@@ -935,7 +935,7 @@ app.get("/api/growthIncome/:username", async (req, res) => {
 
     const monthlyIncome = months.map((month) => {
       const monthData = data.filter((row) => {
-        const rowMonth = new Date(row.dates).toLocaleString("en-US", {
+        const rowMonth = new Date(row.date).toLocaleString("en-US", {
           month: "short",
         });
         return rowMonth.toLowerCase() === month.toLowerCase();
@@ -985,7 +985,7 @@ app.get("/api/spendingData/:username", async (req, res) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("dates, category, amount")
+      .select("date, category, amount")
       .eq("user_id", userid)
       .eq("category", "Expense");
 
@@ -1011,7 +1011,7 @@ app.get("/api/spendingData/:username", async (req, res) => {
 
     const monthlySpending = months.map((month) => {
       const monthData = data.filter((row) => {
-        const rowMonth = new Date(row.dates).toLocaleString("en-US", {
+        const rowMonth = new Date(row.date).toLocaleString("en-US", {
           month: "short",
         });
         return rowMonth.toLowerCase() === month.toLowerCase();
