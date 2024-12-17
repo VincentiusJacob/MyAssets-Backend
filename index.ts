@@ -319,7 +319,7 @@ app.post("/newTransaction", async (req, res) => {
         user_id: userId,
         title,
         amount,
-        dates: currentDate,
+        date: currentDate,
         category,
         description,
         type,
