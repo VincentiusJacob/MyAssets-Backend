@@ -88,7 +88,7 @@ app.post("/auth/register", async (req: Request, res: Response) => {
 
     if (dbError) return res.status(400).json({ error: dbError.message });
 
-    res.status(200).json({ user });
+    res.status(200).json({ user, username });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
