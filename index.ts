@@ -1248,6 +1248,7 @@ app.get("/getUserProfile/:username", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    console.log("user data: ", profileData);
     return res.status(200).json(profileData);
   } catch (err: any) {
     console.error("Error processing request:", err.message);
