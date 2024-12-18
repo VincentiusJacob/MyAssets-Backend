@@ -98,30 +98,6 @@ app.post("/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    // Sign the user in using Supabase authentication
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-    // Handle any errors related to the sign-in process
-    if (sessionError) {
-      return res
-        .status(400)
-        .json({
-          error: "Login failed with Supabase",
-          details: sessionError.message,
-        });
-    }
-
-    const session = sessionData?.session;
-
-    if (!session) {
-      return res.status(401).json({ error: "Authentication failed" });
-    }
-
-    // Retrieve user from the "users" table after authentication
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
@@ -129,13 +105,18 @@ app.post("/auth/login", async (req: Request, res: Response) => {
       .single();
 
     if (error || !user) {
-      return res.status(400).json({ error: "User data not found" });
+      return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // Store user session in your session management
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordMatch) {
+      return res.status(400).json({ error: "Invalid email or password" });
+    }
+
     (req.session as { user?: User }).user = user;
 
-    res.status(200).json({ user, session: session.access_token });
+    res.status(200).json({ user });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -184,45 +165,26 @@ passport.deserializeUser(async (id: string, done) => {
 
 app.put("/updateProfile", async (req, res) => {
   const { data: requestData } = req.body;
-  const token = req.headers.authorization?.split(" ")[1]; // Extract token from Authorization header
 
-  if (!token) {
-    return res.status(401).json({ message: "No token provided" });
+  if (!requestData.email) {
+    return res.status(400).json({ message: "Email is required" });
   }
 
+  const formattedDateOfBirth = requestData.dateofbirth || null;
+
   try {
-    // Verify the token and get user info
-    const { data: authData, error: authError } = await supabase.auth.getUser(
-      token
-    );
-    if (authError || !authData) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-
-    const username = authData?.user?.user_metadata?.username;
-
-    if (!username) {
-      return res.status(400).json({ message: "Username not found in token" });
-    }
-
-    // Query the users table to find the user_id using the username
-    const { data: userData, error: userError } = await supabase
+    const { data, error } = await supabase
       .from("users")
-      .select("id")
-      .eq("username", username)
+      .select("user_id")
+      .eq("email", requestData.email)
       .single();
 
-    if (userError || !userData) {
-      return res
-        .status(404)
-        .json({ message: "User not found in the database" });
+    if (error) {
+      console.log("error getting userid");
     }
 
-    const userId = userData.id;
+    const userId = data?.user_id;
 
-    const formattedDateOfBirth = requestData.dateofbirth || null;
-
-    // Update user profile in the database
     const { error: dbError } = await supabase.from("userprofiles").upsert(
       {
         userid: userId,
