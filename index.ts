@@ -98,7 +98,30 @@ app.post("/auth/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    // Check the user in your "users" table
+    // Sign the user in using Supabase authentication
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    // Handle any errors related to the sign-in process
+    if (sessionError) {
+      return res
+        .status(400)
+        .json({
+          error: "Login failed with Supabase",
+          details: sessionError.message,
+        });
+    }
+
+    const session = sessionData?.session;
+
+    if (!session) {
+      return res.status(401).json({ error: "Authentication failed" });
+    }
+
+    // Retrieve user from the "users" table after authentication
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
@@ -106,32 +129,7 @@ app.post("/auth/login", async (req: Request, res: Response) => {
       .single();
 
     if (error || !user) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    // Compare the password with the hashed password in the database
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    // Now, sign the user in using Supabase authentication
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-    if (sessionError) {
-      return res.status(400).json({ error: "Login failed with Supabase" });
-    }
-
-    // You can either send the session info (access_token) or store it in a cookie/sessions
-    const session = sessionData?.session;
-
-    if (!session) {
-      return res.status(401).json({ error: "Authentication failed" });
+      return res.status(400).json({ error: "User data not found" });
     }
 
     // Store user session in your session management
