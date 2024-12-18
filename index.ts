@@ -195,7 +195,7 @@ app.put("/updateProfile", async (req, res) => {
         phonenumber: requestData.phonenumber || null,
         profilepicture: requestData.profilepicture || null,
       },
-      { onConflict: "userid" }
+      { onConflict: "user_id" }
     );
 
     if (dbError) {
