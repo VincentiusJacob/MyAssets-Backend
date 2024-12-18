@@ -221,9 +221,23 @@ app.post(
     }
 
     try {
+      // Check the MIME type of the uploaded file (ensure it's an image)
+      const mimeType = req.file.mimetype;
+      if (!mimeType.startsWith("image/")) {
+        return res
+          .status(400)
+          .json({ message: "Only image files are allowed" });
+      }
+
+      // Generate a unique filename using timestamp and the original file extension
+      const uniqueFilename = `${Date.now()}-${req.file.originalname}`;
+
+      // Upload the image to Supabase storage
       const { data, error } = await supabase.storage
         .from("profile-pictures")
-        .upload(`profilepictures/${req.file.filename}`, req.file.buffer);
+        .upload(`profilepictures/${uniqueFilename}`, req.file.buffer, {
+          contentType: mimeType, // Set the correct content type
+        });
 
       if (error) {
         return res
@@ -231,9 +245,10 @@ app.post(
           .json({ message: "Upload failed", error: error.message });
       }
 
+      // Get the public URL for the uploaded file
       const publicUrl = supabase.storage
         .from("profile-pictures")
-        .getPublicUrl(`profilepictures/${req.file.filename}`);
+        .getPublicUrl(`profilepictures/${uniqueFilename}`);
 
       res.json({ url: publicUrl.data.publicUrl });
     } catch (err: any) {
