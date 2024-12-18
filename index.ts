@@ -187,7 +187,7 @@ app.put("/updateProfile", async (req, res) => {
 
     const { error: dbError } = await supabase.from("userprofiles").upsert(
       {
-        userid: userId,
+        user_id: userId,
         firstname: requestData.firstname || null,
         lastname: requestData.lastname || null,
         dateofbirth: formattedDateOfBirth,
