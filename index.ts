@@ -166,6 +166,8 @@ passport.deserializeUser(async (id: string, done) => {
 app.put("/updateProfile", async (req, res) => {
   const { data: requestData } = req.body;
 
+  console.log("user data: ", requestData);
+
   if (!requestData.email) {
     return res.status(400).json({ message: "Email is required" });
   }
