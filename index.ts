@@ -1223,6 +1223,38 @@ app.get("/getPayments/:username", async (req, res) => {
   }
 });
 
+app.get("/getUserProfile/:username", async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("username", username)
+      .single();
+
+    if (userError || !userData) {
+      console.error("Error fetching user:", userError?.message);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { data: profileData, error } = await supabase
+      .from("userprofiles")
+      .select("*")
+      .eq("user_id", userData.user_id);
+
+    if (error || !profileData) {
+      console.error("Error fetching user:", error?.message);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json(profileData);
+  } catch (err: any) {
+    console.error("Error processing request:", err.message);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.get("/getUserID/:username", async (req, res) => {
   const { username } = req.params;
 
