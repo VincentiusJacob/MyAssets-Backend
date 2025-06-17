@@ -1109,80 +1109,119 @@ app.get("/api/investmentData/:username", async (req, res) => {
 
 app.post("/newOutstandingPayment", async (req, res) => {
   const { username, title, amount, description } = req.body;
-
   try {
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("user_id") // Umumnya kolom primary key bernama 'id', bukan 'user_id'
+      .select("user_id")
       .eq("username", username)
       .single();
-
-    if (userError) {
-      console.error("Error fetching user:", userError.message);
-      return res
-        .status(404)
-        .json({ error: "User not found or duplicate exists." });
-    }
-
+    if (userError) throw userError;
     const userId = userData.user_id;
 
-    const { data: existingPaymentData, error: paymentError } = await supabase
+    const { data: existingPayment, error: checkError } = await supabase
       .from("outstanding_payments")
-      .select("*")
+      .select("payment_id")
       .eq("user_id", userId)
       .eq("payment_name", title)
-      .maybeSingle(); // <-- MENGGUNAKAN maybeSingle()
+      .maybeSingle();
+    if (checkError) throw checkError;
 
-    // Error ini sekarang hanya akan muncul jika ada masalah koneksi/query, bukan karena data tidak ditemukan
-    if (paymentError) {
-      console.error("Error checking payment:", paymentError.message);
+    if (existingPayment) {
       return res
-        .status(500)
-        .json({ error: "Database error during payment check" });
-    }
-
-    // Jika data ditemukan (tidak null), update.
-    if (existingPaymentData) {
-      const currentAmountPaid = parseFloat(existingPaymentData.amount_paid);
-      const newAmountPaid = (currentAmountPaid + parseFloat(amount)).toFixed(2);
-
-      const { error: updateError } = await supabase
-        .from("outstanding_payments")
-        .update({ amount_paid: newAmountPaid })
-        .eq("payment_id", existingPaymentData.id); // Lebih aman update by primary key 'id'
-
-      if (updateError) {
-        console.error("Error updating payment:", updateError.message);
-        return res.status(500).json({ error: "Error updating payment" });
-      }
-
-      return res.status(200).json({ message: "Payment updated successfully" });
-    }
-    // Jika data tidak ditemukan (null), buat baru.
-    else {
-      const { error: insertError } = await supabase
+        .status(409)
+        .json({ message: "Payment with this title already exists." });
+    } else {
+      const { data, error: insertError } = await supabase
         .from("outstanding_payments")
         .insert([
           {
             user_id: userId,
             payment_name: title,
-            amount_due: amount, // Seharusnya ini amount_due, bukan amount yg dibayar
+            amount_due: amount,
+            description,
             status: "Pending",
-            description: description,
-            amount_paid: 0, // Pembayaran awal 0
+            amount_paid: 0,
           },
-        ]);
-
-      if (insertError) {
-        console.error("Error inserting payment:", insertError.message);
-        return res.status(500).json({ error: "Error creating payment" });
-      }
-
-      return res.status(200).json({ message: "Payment added successfully" });
+        ])
+        .select();
+      if (insertError) throw insertError;
+      return res
+        .status(200)
+        .json({ message: "New payment created successfully", data: data[0] });
     }
-  } catch (err: any) {
+  } catch (err) {
+    console.error("Error creating new payment:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/payOutstandingPayment", async (req, res) => {
+  const { payment_id, amount_to_pay, username } = req.body;
+
+  if (!payment_id || !amount_to_pay || !username) {
+    return res
+      .status(400)
+      .json({
+        error: "Missing required fields: payment_id, amount_to_pay, username",
+      });
+  }
+
+  try {
+    // Step 1: Dapatkan data utang saat ini
+    const { data: payment, error: paymentError } = await supabase
+      .from("outstanding_payments")
+      .select("amount_due, amount_paid, payment_name")
+      .eq("payment_id", payment_id)
+      .single();
+
+    if (paymentError) throw new Error("Could not find the payment to update.");
+
+    // Step 2: Lakukan kalkulasi
+    const newAmountPaid =
+      parseFloat(payment.amount_paid) + parseFloat(amount_to_pay);
+    const isPaidOff = newAmountPaid >= parseFloat(payment.amount_due);
+    const newStatus = isPaidOff ? "Paid" : "Pending";
+
+    // Step 3: Dapatkan user_id untuk membuat transaksi expense
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("username", username)
+      .single();
+    if (userError) throw new Error("User not found for creating transaction.");
+
+    // Step 4: Buat transaksi baru sebagai 'Expense'
+    const { error: transactionError } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: userData.user_id,
+        title: `Payment for: ${payment.payment_name}`,
+        amount: amount_to_pay,
+        category: "Expense",
+        type: "Debt Payment",
+        description: `Installment payment for ${payment.payment_name}.`,
+      });
+
+    if (transactionError)
+      throw new Error("Failed to create expense transaction.");
+
+    // Step 5: Update data utang di tabel outstanding_payments
+    const { data: updatedPayment, error: updateError } = await supabase
+      .from("outstanding_payments")
+      .update({ amount_paid: newAmountPaid, status: newStatus })
+      .eq("payment_id", payment_id)
+      .select();
+
+    if (updateError) throw new Error("Failed to update the payment record.");
+
+    res
+      .status(200)
+      .json({ message: "Payment successful!", data: updatedPayment[0] });
+  } catch (err) {
     console.error("Error processing payment:", err.message);
-    return res.status(500).json({ error: "Internal server error" });
+    return res
+      .status(500)
+      .json({ error: err.message || "An internal server error occurred." });
   }
 });
 
