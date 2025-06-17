@@ -1111,45 +1111,45 @@ app.post("/newOutstandingPayment", async (req, res) => {
   const { username, title, amount, description } = req.body;
 
   try {
-    // Step 1: Fetch the user ID from Supabase
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("user_id")
+      .select("user_id") // Umumnya kolom primary key bernama 'id', bukan 'user_id'
       .eq("username", username)
-      .single(); // Use single() since we're expecting one result
+      .single();
 
     if (userError) {
       console.error("Error fetching user:", userError.message);
-      return res.status(404).json({ error: "User not found" });
+      return res
+        .status(404)
+        .json({ error: "User not found or duplicate exists." });
     }
 
     const userId = userData.user_id;
-    console.log("User ID:", userId);
 
     const { data: existingPaymentData, error: paymentError } = await supabase
       .from("outstanding_payments")
       .select("*")
       .eq("user_id", userId)
       .eq("payment_name", title)
-      .single();
+      .maybeSingle(); // <-- MENGGUNAKAN maybeSingle()
 
+    // Error ini sekarang hanya akan muncul jika ada masalah koneksi/query, bukan karena data tidak ditemukan
     if (paymentError) {
       console.error("Error checking payment:", paymentError.message);
-      return res.status(500).json({ error: "Database error" });
+      return res
+        .status(500)
+        .json({ error: "Database error during payment check" });
     }
 
+    // Jika data ditemukan (tidak null), update.
     if (existingPaymentData) {
       const currentAmountPaid = parseFloat(existingPaymentData.amount_paid);
       const newAmountPaid = (currentAmountPaid + parseFloat(amount)).toFixed(2);
 
-      console.log("Current amount paid:", currentAmountPaid);
-      console.log("New amount to be updated:", newAmountPaid);
-
       const { error: updateError } = await supabase
         .from("outstanding_payments")
         .update({ amount_paid: newAmountPaid })
-        .eq("user_id", userId)
-        .eq("payment_name", title);
+        .eq("payment_id", existingPaymentData.id); // Lebih aman update by primary key 'id'
 
       if (updateError) {
         console.error("Error updating payment:", updateError.message);
@@ -1157,17 +1157,19 @@ app.post("/newOutstandingPayment", async (req, res) => {
       }
 
       return res.status(200).json({ message: "Payment updated successfully" });
-    } else {
+    }
+    // Jika data tidak ditemukan (null), buat baru.
+    else {
       const { error: insertError } = await supabase
         .from("outstanding_payments")
         .insert([
           {
             user_id: userId,
             payment_name: title,
-            amount_due: amount,
+            amount_due: amount, // Seharusnya ini amount_due, bukan amount yg dibayar
             status: "Pending",
             description: description,
-            amount_paid: 0,
+            amount_paid: 0, // Pembayaran awal 0
           },
         ]);
 
