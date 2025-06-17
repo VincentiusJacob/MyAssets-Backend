@@ -1167,7 +1167,6 @@ app.post("/payOutstandingPayment", async (req, res) => {
   }
 
   try {
-    // Step 1: Dapatkan data utang saat ini
     const { data: payment, error: paymentError } = await supabase
       .from("outstanding_payments")
       .select("amount_due, amount_paid, payment_name")
@@ -1176,13 +1175,11 @@ app.post("/payOutstandingPayment", async (req, res) => {
 
     if (paymentError) throw new Error("Could not find the payment to update.");
 
-    // Step 2: Lakukan kalkulasi
     const newAmountPaid =
       parseFloat(payment.amount_paid) + parseFloat(amount_to_pay);
     const isPaidOff = newAmountPaid >= parseFloat(payment.amount_due);
     const newStatus = isPaidOff ? "Paid" : "Pending";
 
-    // Step 3: Dapatkan user_id untuk membuat transaksi expense
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("user_id")
@@ -1190,7 +1187,6 @@ app.post("/payOutstandingPayment", async (req, res) => {
       .single();
     if (userError) throw new Error("User not found for creating transaction.");
 
-    // Step 4: Buat transaksi baru sebagai 'Expense'
     const { error: transactionError } = await supabase
       .from("transactions")
       .insert({
@@ -1201,23 +1197,20 @@ app.post("/payOutstandingPayment", async (req, res) => {
         type: "Debt Payment",
         description: `Installment payment for ${payment.payment_name}.`,
       });
-
     if (transactionError)
       throw new Error("Failed to create expense transaction.");
 
-    // Step 5: Update data utang di tabel outstanding_payments
     const { data: updatedPayment, error: updateError } = await supabase
       .from("outstanding_payments")
       .update({ amount_paid: newAmountPaid, status: newStatus })
       .eq("payment_id", payment_id)
       .select();
-
     if (updateError) throw new Error("Failed to update the payment record.");
 
     res
       .status(200)
       .json({ message: "Payment successful!", data: updatedPayment[0] });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error processing payment:", err.message);
     return res
       .status(500)
@@ -1227,36 +1220,25 @@ app.post("/payOutstandingPayment", async (req, res) => {
 
 app.get("/getPayments/:username", async (req, res) => {
   const { username } = req.params;
-
-  console.log(username);
-
   try {
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("user_id")
       .eq("username", username)
       .single();
-
     if (userError || !userData) {
-      console.error("Error fetching user:", userError?.message);
       return res.status(404).json({ error: "User not found" });
     }
-
     const userId = userData.user_id;
-    console.log("Current user ID:", userId);
 
     const { data: paymentsData, error: paymentsError } = await supabase
       .from("outstanding_payments")
-      .select("payment_name, amount_due, status, amount_paid")
+      .select("payment_id, payment_name, amount_due, status, amount_paid")
       .eq("user_id", userId);
 
     if (paymentsError) {
-      console.error("Error fetching payments:", paymentsError.message);
       return res.status(500).json({ error: "Error fetching payments" });
     }
-
-    console.log("Payments data:", paymentsData);
-
     return res.status(200).json(paymentsData);
   } catch (err: any) {
     console.error("Error processing payments:", err.message);
