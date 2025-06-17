@@ -1159,11 +1159,9 @@ app.post("/payOutstandingPayment", async (req, res) => {
   const { payment_id, amount_to_pay, username } = req.body;
 
   if (!payment_id || !amount_to_pay || !username) {
-    return res
-      .status(400)
-      .json({
-        error: "Missing required fields: payment_id, amount_to_pay, username",
-      });
+    return res.status(400).json({
+      error: "Missing required fields: payment_id, amount_to_pay, username",
+    });
   }
 
   try {
@@ -1193,10 +1191,12 @@ app.post("/payOutstandingPayment", async (req, res) => {
         user_id: userData.user_id,
         title: `Payment for: ${payment.payment_name}`,
         amount: amount_to_pay,
+        date: new Date().toISOString(),
         category: "Expense",
         type: "Debt Payment",
         description: `Installment payment for ${payment.payment_name}.`,
       });
+
     if (transactionError)
       throw new Error("Failed to create expense transaction.");
 
