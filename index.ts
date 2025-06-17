@@ -1123,7 +1123,7 @@ app.post("/newOutstandingPayment", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const userId = userData.id;
+    const userId = userData.user_id;
     console.log("User ID:", userId);
 
     const { data: existingPaymentData, error: paymentError } = await supabase
