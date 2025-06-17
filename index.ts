@@ -1114,7 +1114,7 @@ app.post("/newOutstandingPayment", async (req, res) => {
     // Step 1: Fetch the user ID from Supabase
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .select("id")
+      .select("user_id")
       .eq("username", username)
       .single(); // Use single() since we're expecting one result
 
